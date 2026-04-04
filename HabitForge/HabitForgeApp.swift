@@ -1,32 +1,27 @@
-//
-//  HabitForgeApp.swift
-//  HabitForge
-//
-//  Created by Praveet Gupta on 05/04/26.
-//
-
 import SwiftUI
 import SwiftData
 
 @main
 struct HabitForgeApp: App {
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            Item.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            return try ModelContainer(for: schema, configurations: [modelConfiguration])
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
         }
-        .modelContainer(sharedModelContainer)
+        .modelContainer(for: [
+            Habit.self,
+            HabitEntry.self,
+            Todo.self,
+            ChecklistItem.self,
+            Area.self,
+            Project.self,
+            ProjectHeading.self,
+            Tag.self,
+            Routine.self,
+            Exercise.self,
+            RoutineExercise.self,
+            WorkoutSession.self,
+            PerformedExercise.self,
+            PerformedSet.self
+        ])
     }
 }
