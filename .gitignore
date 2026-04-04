@@ -1,0 +1,20 @@
+# Xcode
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM.zip
+
+# Firebase
+GoogleService-Info.plist
+
+# CocoaPods (if used)
+Pods/
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# OS
+.DS_Store
