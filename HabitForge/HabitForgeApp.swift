@@ -5,6 +5,7 @@ import SwiftData
 struct HabitForgeApp: App {
     var body: some Scene {
         WindowGroup {
+            // Habit (and related) notification permission + reminder reschedule: `MainTabView.task`
             MainTabView()
         }
         .modelContainer(for: [

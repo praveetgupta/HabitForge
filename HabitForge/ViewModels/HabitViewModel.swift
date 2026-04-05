@@ -589,12 +589,14 @@ final class HabitViewModel {
     }
 
     func archiveHabit(_ habit: Habit) {
+        NotificationService.shared.cancelHabitReminder(habitId: habit.id)
         habit.isArchived = true
         try? modelContext.save()
         fetchHabits()
     }
 
     func pauseHabit(_ habit: Habit, until: Date? = nil) {
+        NotificationService.shared.cancelHabitReminder(habitId: habit.id)
         habit.isPaused = true
         habit.pausedUntil = until
         try? modelContext.save()
@@ -606,6 +608,9 @@ final class HabitViewModel {
         habit.pausedUntil = nil
         try? modelContext.save()
         fetchHabits()
+        if habit.reminderEnabled, habit.reminderTime != nil {
+            NotificationService.shared.scheduleHabitReminder(habit: habit)
+        }
     }
 
     // MARK: - Add / update habit
@@ -640,6 +645,9 @@ final class HabitViewModel {
         modelContext.insert(habit)
         try? modelContext.save()
         fetchHabits()
+        if reminderEnabled, reminderTime != nil {
+            NotificationService.shared.scheduleHabitReminder(habit: habit)
+        }
     }
 
     func updateHabit(
@@ -675,6 +683,10 @@ final class HabitViewModel {
         habit.reminderTime = reminderTime
         try? modelContext.save()
         fetchHabits()
+        NotificationService.shared.cancelHabitReminder(habitId: habit.id)
+        if reminderEnabled, reminderTime != nil {
+            NotificationService.shared.scheduleHabitReminder(habit: habit)
+        }
     }
 
     // MARK: - Private

@@ -1,6 +1,13 @@
 import SwiftUI
+import SwiftData
 
 struct MainTabView: View {
+    @Query(
+        filter: #Predicate<Habit> { !$0.isArchived },
+        sort: \Habit.sortOrder
+    )
+    private var habitsForReminders: [Habit]
+
     var body: some View {
         TabView {
             HabitDashboardView()
@@ -22,6 +29,12 @@ struct MainTabView: View {
                 .tabItem {
                     Label("Settings", systemImage: "gearshape.fill")
                 }
+        }
+        .task {
+            let granted = await NotificationService.shared.requestPermission()
+            if granted {
+                NotificationService.shared.rescheduleAllHabitReminders(habits: habitsForReminders)
+            }
         }
     }
 }

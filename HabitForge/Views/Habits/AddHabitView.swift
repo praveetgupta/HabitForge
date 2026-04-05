@@ -125,6 +125,9 @@ struct AddHabitView: View {
                     Toggle("Reminder", isOn: $reminderEnabled.animation())
                     if reminderEnabled {
                         DatePicker("Time", selection: $reminderTime, displayedComponents: .hourAndMinute)
+                        Text("You'll get a notification at this time on scheduled days.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
