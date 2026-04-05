@@ -5,8 +5,11 @@ import SwiftData
 struct HabitForgeApp: App {
     var body: some Scene {
         WindowGroup {
-            // Habit (and related) notification permission + reminder reschedule: `MainTabView.task`
             MainTabView()
+                .task {
+                    let granted = await NotificationService.shared.requestPermission()
+                    print("[HabitForge] Notification permission granted: \(granted)")
+                }
         }
         .modelContainer(for: [
             Habit.self,

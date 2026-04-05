@@ -41,4 +41,5 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
+        .modelContainer(for: Habit.self, inMemory: true)
 }
