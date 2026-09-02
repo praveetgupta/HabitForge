@@ -2,7 +2,7 @@ import SwiftData
 import Foundation
 
 @Model
-class Habit {
+class Habit: Identifiable {
     var id: UUID
     var name: String
     var icon: String

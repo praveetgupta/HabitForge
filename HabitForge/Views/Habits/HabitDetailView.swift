@@ -138,7 +138,7 @@ struct HabitDetailView: View {
                     Spacer()
                     Text(entry.isCompleted ? "Completed" : "Not completed")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(entry.isCompleted ? .green : .secondary)
+                        .foregroundStyle(entry.isCompleted ? Color.green : Color.secondary)
                 }
 
                 if let mood = entry.mood, !mood.isEmpty {

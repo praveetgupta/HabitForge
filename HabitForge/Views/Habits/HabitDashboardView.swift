@@ -11,7 +11,7 @@ struct HabitDashboardView: View {
     private var queriedHabits: [Habit]
 
     @State private var viewModel: HabitViewModel?
-    @State private var showingAddHabit = false
+    @State private var showingNewHabit = false
     @State private var habitToEdit: Habit?
     @State private var navPath = NavigationPath()
     @State private var showingProgressDetail = false
@@ -55,8 +55,7 @@ struct HabitDashboardView: View {
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button {
-                        habitToEdit = nil
-                        showingAddHabit = true
+                        showingNewHabit = true
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -67,9 +66,14 @@ struct HabitDashboardView: View {
                     HabitDetailView(habit: h, viewModel: vm)
                 }
             }
-            .sheet(isPresented: $showingAddHabit, onDismiss: { habitToEdit = nil }) {
+            .sheet(isPresented: $showingNewHabit) {
                 if let vm = viewModel {
-                    AddHabitView(viewModel: vm, habitToEdit: habitToEdit)
+                    AddHabitView(viewModel: vm, habitToEdit: nil)
+                }
+            }
+            .sheet(item: $habitToEdit) { habit in
+                if let vm = viewModel {
+                    AddHabitView(viewModel: vm, habitToEdit: habit)
                 }
             }
             .fullScreenCover(isPresented: Binding(
@@ -198,7 +202,6 @@ struct HabitDashboardView: View {
                     onViewStats: { navPath.append(habit.id) },
                     onEdit: {
                         habitToEdit = habit
-                        showingAddHabit = true
                     }
                 )
             }
