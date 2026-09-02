@@ -1,179 +1,96 @@
+<p align="center">
+  <img src="HabitForge/Assets.xcassets/AppIcon.appiconset/AppIcon.png" width="120" alt="HabitForge icon">
+</p>
+
 # HabitForge
 
-**An all-in-one iOS productivity app combining habit tracking, task management, and workout logging.**
+**Habits, todos, and workouts — one native iOS app.**
 
-Built with SwiftUI, SwiftData, and MVVM architecture. Inspired by the best features of **Streaks**, **Things 3**, and **Strong Pro** — unified into a single, elegant app.
+HabitForge merges three product categories that usually live in three separate apps:
+Streaks-style habit tracking, Things 3-style task management, and Strong-style workout
+logging. Built natively in SwiftUI with SwiftData, designed dark-first with an
+"old money" gold-on-near-black aesthetic.
 
----
+| Habits | Todos | Workouts | Active workout |
+|---|---|---|---|
+| ![Habits](screenshots/habits.png) | ![Todos](screenshots/todos.png) | ![Workouts](screenshots/workouts.png) | ![Active workout](screenshots/active-workout.png) |
 
-## Features
+## Modules
 
-### 🔥 Habit Tracking (Streaks-Inspired)
-- **Build & Break habits** — track habits you want to build or break
-- **Three tracking modes** — simple toggle, count-based (e.g., 8 glasses of water), and duration-based with built-in timer
-- **Flexible scheduling** — daily, specific days of the week, or X times per week/month
-- **Circular progress rings** — color-coded rings that fill as you complete habits
-- **Streak tracking** — current streak, best streak, completion rate, total completions
-- **Calendar heatmap** — month view with colored cells showing your consistency
-- **Progress charts** — Swift Charts integration with 7/14/30-day views
-- **Overall progress graph** — combined daily completion across all habits
-- **Notes & mood tracking** — daily notes and mood tags on any habit entry
-- **Pause & resume** — temporarily pause habits without breaking streaks
-- **Smart reminders** — local notifications on scheduled days
+### 🔥 Habits
+- Daily dashboard: overall completion ring, habit ring grid, all-habits progress graph
+- **Build** and **Break** habit types with daily / weekly / monthly frequencies
+- Three tracking modes: simple toggle, count (e.g. 8 glasses of water), and duration
+  with a full-screen timer
+- Current + best streaks, month calendar heatmap, 7/14/30/90-day charts
+- Per-entry notes and mood, weekday scheduling, pause/resume, archive
+- Local notification reminders
 
-### ✅ Task Management (Things 3-Inspired)
-- **GTD workflow** — Inbox → Today → Upcoming → Anytime → Someday → Logbook
-- **Two-date system** — "When" date (when to start) vs "Deadline" (when it's due)
-- **Areas & Projects** — organize tasks into areas of responsibility and projects with progress tracking
-- **Project headings** — section dividers within projects for structured task groups
-- **Checklists** — sub-tasks within any todo with drag-to-reorder
-- **Quick Add (Magic Plus)** — capture tasks instantly from anywhere with destination chips
-- **Evening section** — separate evening tasks in the Today view
-- **Repeating tasks** — daily, weekly, monthly, yearly recurrence with auto-creation
-- **Tags & priorities** — cross-cutting categorization with color-coded priority flags
-- **Smart scheduling** — auto-promote upcoming tasks to Today when their date arrives
-- **Swipe actions** — swipe to complete, schedule, or move tasks between lists
-- **Search** — full-text search across titles, notes, and tags
+### ✅ Todos
+- Full GTD flow: **Inbox → Today → Upcoming → Anytime → Someday → Logbook**
+- Two-date model: *when* you plan to start vs. hard *deadlines*
+- Areas → Projects → Headings → Todos → Checklists, with project progress rings
+- Repeating todos that spawn their next occurrence on completion
+- Quick Add with destination chips (Inbox / Today / Evening / Tomorrow / Next Week) and
+  rapid multi-entry ("N added"); a floating "+" is available from every tab
+- Tags, priority flags, evening section, swipe actions, drag-to-reorder, search
 
-### 🏋️ Workout Logging (Strong Pro-Inspired)
-- **Custom routines** — create any workout split (PPL, Upper/Lower, Full Body, Bro Split, etc.)
-- **Exercise library** — 70+ pre-loaded exercises organized by muscle group and equipment
-- **Custom exercises** — add your own exercises with muscle group and equipment tags
-- **Live session logging** — log sets with weight × reps in real-time
-- **Set types** — warmup, working, drop set, to failure
-- **Rest timer** — auto-start between sets with customizable duration
-- **Auto PR detection** — personal records flagged automatically with badges
-- **Volume tracking** — total weight × reps calculated per session
-- **Progress charts** — per-exercise weight and volume graphs over time
-- **Workout history** — calendar view of past sessions with full details
-- **Post-workout summary** — duration, volume, PRs, and mood rating
+### 🏋️ Workouts
+- **No fixed splits** — build any routine (PPL, Upper/Lower, full body, whatever)
+- 88-exercise seeded library across 12 muscle groups, filterable by muscle and
+  equipment; custom exercises supported
+- Active workout screen: live session clock, `SET | PREVIOUS | KG | REPS | ✓` grid,
+  weights auto-filled from your last session
+- PR detection with badges, automatic volume totals, per-set rest timer with ±15s / skip
+- Post-session summary with mood, per-exercise history charts (weight & volume),
+  session history grouped by month, 8-week volume progress
 
-### ⚙️ Infrastructure
-- **Firebase Authentication** — email + Sign in with Apple
-- **Local notifications** — habit reminders and todo due dates
-- **RevenueCat subscriptions** — free tier and Pro monthly/yearly plans
-- **SwiftData persistence** — Apple's modern local database
-- **Cloud sync ready** — CloudKit integration for cross-device sync
+## Tech
 
----
+| | |
+|---|---|
+| UI | SwiftUI, Swift Charts |
+| Persistence | SwiftData (14 `@Model` classes, local store) |
+| Architecture | MVVM with `@Observable` view models |
+| Target | iOS 17+ |
+| Dependencies | None — first-party frameworks only |
 
-## Tech Stack
+Views own `@Query` for live updates and push results into view models; view models are
+`@Observable` classes initialised with a `ModelContext`. Enum-like fields are stored as
+raw strings (SwiftData `#Predicate` limitation) — the canonical value lists live in
+[HANDOFF.md](HANDOFF.md).
 
-| Technology | Purpose |
-|-----------|---------|
-| **SwiftUI** | Declarative UI framework |
-| **SwiftData** | Local persistence (Apple's modern Core Data replacement) |
-| **MVVM** | Architecture pattern |
-| **Swift Charts** | Native charting for progress graphs |
-| **Firebase Auth** | User authentication |
-| **RevenueCat** | In-app subscription management |
-| **UserNotifications** | Local push notifications |
+## Building
 
----
-
-## Architecture
-
-```
-HabitForge/
-├── App/                    # App entry point, tab bar
-├── Models/                 # SwiftData @Model classes (14 models)
-├── ViewModels/             # @Observable MVVM view models
-├── Views/
-│   ├── Auth/               # Login, signup, onboarding
-│   ├── Habits/             # Dashboard, rings, detail, charts, timer
-│   ├── Todos/              # Inbox, Today, Upcoming, detail, projects
-│   ├── Workouts/           # Routines, active session, progress
-│   └── Settings/           # Profile, subscription, preferences
-├── Services/               # Auth, notifications, subscriptions
-├── Components/             # Reusable UI (progress ring, empty states)
-└── Extensions/             # Color+Hex, Date+Helpers
+```bash
+xcodebuild -project HabitForge.xcodeproj \
+           -scheme HabitForge \
+           -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+           build
 ```
 
-### Data Models
-- **Habits**: `Habit`, `HabitEntry`
-- **Todos**: `Todo`, `ChecklistItem`, `Area`, `Project`, `ProjectHeading`, `Tag`
-- **Workouts**: `Routine`, `Exercise`, `RoutineExercise`, `WorkoutSession`, `PerformedExercise`, `PerformedSet`
+Or open `HabitForge.xcodeproj` in Xcode and press ⌘R. The project uses automatic
+signing with a free personal Apple ID — device builds need
+`-allowProvisioningUpdates` and stay valid for **7 days** (free-account limitation).
 
----
+## Testing
 
-## Screenshots
+End-to-end UI tests cover the full workout flow (routine creation → set logging →
+rest-timer adjust/skip → finish → summary → history/progress). They are self-contained
+and pass against a fresh app container:
 
-<!-- Add screenshots here -->
-| Habits | Todos | Workouts |
-|--------|-------|----------|
-| ![Habits](screenshots/habits.png) | ![Todos](screenshots/todos.png) | ![Workouts](screenshots/workouts.png) |
+```bash
+xcodebuild test -project HabitForge.xcodeproj \
+                -scheme HabitForge \
+                -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+                -only-testing:HabitForgeUITests/WorkoutFlowUITests
+```
 
----
-
-## Getting Started
-
-### Prerequisites
-- macOS with Xcode 15+
-- iOS 17.0+ deployment target
-- Apple Developer account (free for development, $99/year for App Store)
-
-### Setup
-1. Clone the repository
-   ```bash
-   git clone https://github.com/yourusername/HabitForge.git
-   cd HabitForge
-   ```
-
-2. Open in Xcode
-   ```bash
-   open HabitForge.xcodeproj
-   ```
-
-3. Add Firebase configuration
-   - Create a project at [Firebase Console](https://console.firebase.google.com)
-   - Download `GoogleService-Info.plist` and add to the project root
-
-4. Build and run
-   - Select your target device/simulator
-   - Press `⌘R`
-
----
-
-## Subscription Tiers
-
-### Free
-- 3 habits
-- Basic todos (Inbox, Today, Logbook)
-- 3 workout routines
-- 30-day history
-
-### Pro ($4.99/mo or $39.99/yr)
-- Unlimited habits, todos, and routines
-- Custom exercises
-- Full history and advanced charts
-- Cloud sync across devices
-- Priority support
-
----
+The app icon is generated code — tweak and re-run `make_icon.swift` (a CoreGraphics
+script) rather than hand-editing the PNG.
 
 ## Roadmap
 
-- [x] Habit tracking with streaks and charts
-- [x] Things 3-style task management
-- [ ] Workout logging with progress tracking
-- [ ] Firebase authentication
-- [ ] RevenueCat subscription paywall
-- [ ] Onboarding flow
-- [ ] Widget support (iOS home screen)
-- [ ] Apple Watch companion
-- [ ] Data export (CSV)
-- [ ] Shortcuts/Siri integration
-
----
-
-## License
-
-This project is proprietary. All rights reserved.
-
----
-
-## Author
-
-**Praveet Gupta**
-
-Built with SwiftUI and an unhealthy amount of caffeine ☕
+- Firebase Auth (email + Sign in with Apple)
+- RevenueCat freemium paywall (free: 3 habits / 3 routines / 30-day history)
+- Onboarding, settings (units, export), App Store release
