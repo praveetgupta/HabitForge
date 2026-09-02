@@ -3,12 +3,17 @@ import SwiftData
 
 @main
 struct HabitForgeApp: App {
+    @Environment(\.modelContext) private var modelContext
+
     var body: some Scene {
         WindowGroup {
             MainTabView()
                 .task {
                     let granted = await NotificationService.shared.requestPermission()
                     print("[HabitForge] Notification permission granted: \(granted)")
+                }
+                .task {
+                    ExerciseSeedData.seedIfNeeded(modelContext: modelContext)
                 }
         }
         .modelContainer(for: [
