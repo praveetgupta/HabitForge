@@ -8,7 +8,11 @@ struct ExerciseDetailView: View {
 
     @State private var history: [ExerciseHistoryEntry] = []
 
+    @State private var settings = AppSettings.shared
+
     private var chronological: [ExerciseHistoryEntry] { history.reversed() }
+
+    private var unit: WeightUnit { settings.weightUnit }
 
     var body: some View {
         List {
@@ -23,17 +27,17 @@ struct ExerciseDetailView: View {
             }
 
             if chronological.count >= 2 {
-                Section("Weight Over Time") {
+                Section("Weight Over Time (\(unit.shortName))") {
                     Chart {
                         ForEach(Array(chronological.enumerated()), id: \.offset) { index, entry in
                             if let w = entry.bestWeight {
-                                LineMark(x: .value("Date", entry.date), y: .value("kg", w))
+                                LineMark(x: .value("Date", entry.date), y: .value(unit.shortName, unit.fromKilograms(w)))
                                     .foregroundStyle(.blue)
                                     .symbol(Circle())
-                                PointMark(x: .value("Date", entry.date), y: .value("kg", w))
+                                PointMark(x: .value("Date", entry.date), y: .value(unit.shortName, unit.fromKilograms(w)))
                                     .foregroundStyle(.blue)
                                 if index == chronological.count - 1 {
-                                    RuleMark(y: .value("kg", w))
+                                    RuleMark(y: .value(unit.shortName, unit.fromKilograms(w)))
                                         .foregroundStyle(.blue.opacity(0.2))
                                 }
                             }
@@ -46,12 +50,12 @@ struct ExerciseDetailView: View {
                     .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
                 }
 
-                Section("Volume Over Time") {
+                Section("Volume Over Time (\(unit.shortName))") {
                     Chart {
                         ForEach(chronological) { entry in
                             BarMark(
                                 x: .value("Date", entry.date, unit: .day),
-                                y: .value("kg", entry.totalVolume)
+                                y: .value(unit.shortName, unit.fromKilograms(entry.totalVolume))
                             )
                             .foregroundStyle(.purple.opacity(0.8))
                         }
@@ -73,12 +77,12 @@ struct ExerciseDetailView: View {
                                     .font(.body.weight(.medium))
                                 Spacer()
                                 if let best = entry.bestWeight {
-                                    Text("\(Int(best)) kg × \(entry.bestReps ?? 0)")
+                                    Text("\(unit.format(kilograms: best)) × \(entry.bestReps ?? 0)")
                                         .font(.subheadline.monospacedDigit())
                                         .foregroundStyle(.secondary)
                                 }
                             }
-                            Text("\(entry.setCount) sets · \(Int(entry.totalVolume).formatted()) kg total")
+                            Text("\(entry.setCount) sets · \(unit.format(kilograms: entry.totalVolume)) total")
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
@@ -94,12 +98,12 @@ struct ExerciseDetailView: View {
     }
 
     private var prText: String {
-        if let pr = exercise.prMaxWeight { return "\(Int(pr)) kg" }
+        if let pr = exercise.prMaxWeight { return unit.format(kilograms: pr) }
         return "—"
     }
 
     private var volumePRText: String {
-        if let v = exercise.prMaxVolume, v > 0 { return "\(Int(v).formatted()) kg" }
+        if let v = exercise.prMaxVolume, v > 0 { return unit.format(kilograms: v) }
         return "—"
     }
 

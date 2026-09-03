@@ -1,20 +1,27 @@
 # Xcode
 *.xcuserdata/
+*.xcuserdatad/
+xcuserdata/
 *.xcworkspace/xcuserdata/
 DerivedData/
 build/
 *.ipa
 *.dSYM.zip
-
-# Firebase
-GoogleService-Info.plist
-
-# CocoaPods (if used)
-Pods/
+*.xcresult/
 
 # Swift Package Manager
 .build/
 .swiftpm/
 
-# OS
+# CocoaPods / Carthage (not used, but keep strays out)
+Pods/
+Carthage/Build/
+
+# Signing and secrets — never commit these
+*.mobileprovision
+*.p12
+*.cer
+GoogleService-Info.plist
+
+# macOS
 .DS_Store

@@ -14,6 +14,9 @@ struct WorkoutProgressView: View {
     }
 
     @State private var weeklyVolumes: [WeekVolume] = []
+    @State private var settings = AppSettings.shared
+
+    private var unit: WeightUnit { settings.weightUnit }
 
     var body: some View {
         List {
@@ -27,7 +30,7 @@ struct WorkoutProgressView: View {
                 .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
             }
 
-            Section("Weekly Volume (kg)") {
+            Section("Weekly Volume (\(unit.shortName))") {
                 if weeklyVolumes.isEmpty {
                     Text("Finish a workout to see progress here.")
                         .foregroundStyle(.tertiary)
@@ -35,7 +38,7 @@ struct WorkoutProgressView: View {
                     Chart(weeklyVolumes) { week in
                         BarMark(
                             x: .value("Week", week.weekStart, unit: .weekOfYear),
-                            y: .value("Volume", week.volume)
+                            y: .value("Volume", unit.fromKilograms(week.volume))
                         )
                         .foregroundStyle(.purple.opacity(0.8))
                         .cornerRadius(4)
@@ -59,7 +62,7 @@ struct WorkoutProgressView: View {
                                 .font(.subheadline)
                             Spacer()
                             if let w = set.weightKg {
-                                Text("\(Int(w)) kg × \(set.reps ?? 0)")
+                                Text("\(unit.format(kilograms: w)) × \(set.reps ?? 0)")
                                     .font(.subheadline.monospacedDigit())
                                     .foregroundStyle(.secondary)
                             }
@@ -95,7 +98,7 @@ struct WorkoutProgressView: View {
 
     private var totalVolumeText: String {
         let total = viewModel.sessions.reduce(0.0) { $0 + $1.totalVolumeKg }
-        return total > 0 ? "\(Int(total).formatted())" : "—"
+        return total > 0 ? unit.format(kilograms: total) : "—"
     }
 
     private var totalPRText: String {

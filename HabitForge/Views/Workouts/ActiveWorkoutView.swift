@@ -8,6 +8,7 @@ struct ActiveWorkoutView: View {
     var onFinish: (WorkoutSession?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var settings = AppSettings.shared
     @State private var showingExercisePicker = false
     @State private var showingDiscardDialog = false
 
@@ -26,7 +27,7 @@ struct ActiveWorkoutView: View {
                                 .font(.system(size: 40, weight: .bold, design: .rounded))
                                 .monospacedDigit()
                         }
-                        Text("\(completedSets) set\(completedSets == 1 ? "" : "s") · \(Int(session.totalVolumeKg).formatted()) kg")
+                        Text("\(completedSets) set\(completedSets == 1 ? "" : "s") · \(settings.weightUnit.format(kilograms: session.totalVolumeKg))")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -114,6 +115,7 @@ struct ActiveExerciseCard: View {
     let viewModel: WorkoutViewModel
     let session: WorkoutSession
 
+    @State private var settings = AppSettings.shared
     @State private var previous: [Double?] = []
     @State private var restSeconds = 90
 
@@ -148,7 +150,7 @@ struct ActiveExerciseCard: View {
                     .frame(width: 36, alignment: .center)
                 Text("PREVIOUS")
                     .frame(maxWidth: .infinity, alignment: .center)
-                Text("KG")
+                Text(settings.weightUnit.shortName.uppercased())
                     .frame(width: 64, alignment: .center)
                 Text("REPS")
                     .frame(width: 50, alignment: .center)
@@ -184,7 +186,7 @@ struct ActiveExerciseCard: View {
                 previous = viewModel.previousWeights(for: exercise)
                 restSeconds = session.routine?.templateExercises
                     .first { $0.exercise?.id == exercise.id }?
-                    .restSeconds ?? 90
+                    .restSeconds ?? settings.defaultRestSeconds
             }
         }
     }
@@ -192,8 +194,8 @@ struct ActiveExerciseCard: View {
     private func previousFor(_ set: PerformedSet) -> String {
         let index = set.setNumber - 1
         guard index < previous.count else { return "—" }
-        let w = previous[index]
-        return w != nil ? "\(Int(w!)) kg" : "—"
+        guard let w = previous[index] else { return "—" }
+        return settings.weightUnit.format(kilograms: w)
     }
 }
 
@@ -204,6 +206,8 @@ struct SetLogRow: View {
     let previous: String
     let restSeconds: Int
     let viewModel: WorkoutViewModel
+
+    @State private var settings = AppSettings.shared
 
     var body: some View {
         HStack(spacing: 8) {
@@ -221,9 +225,9 @@ struct SetLogRow: View {
                 .frame(maxWidth: .infinity, alignment: .center)
 
             TextField("0", value: Binding(
-                get: { set.weightKg ?? 0 },
-                set: { set.weightKg = $0 }
-            ), format: .number)
+                get: { settings.weightUnit.fromKilograms(set.weightKg ?? 0) },
+                set: { set.weightKg = settings.weightUnit.toKilograms($0) }
+            ), format: .number.precision(.fractionLength(0...1)))
                 .keyboardType(.decimalPad)
                 .multilineTextAlignment(.center)
                 .font(.body.monospacedDigit())
@@ -234,7 +238,7 @@ struct SetLogRow: View {
                         .fill(set.isCompleted ? Color.green.opacity(0.1) : Color.secondary.opacity(0.08))
                 )
                 .disabled(set.isCompleted)
-                .accessibilityLabel("Set \(set.setNumber) weight in kilograms")
+                .accessibilityLabel("Set \(set.setNumber) weight in \(settings.weightUnit == .kilograms ? "kilograms" : "pounds")")
 
             TextField("0", value: Binding(
                 get: { set.reps ?? 0 },

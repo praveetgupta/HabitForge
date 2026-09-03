@@ -117,3 +117,10 @@ final class NotificationService {
         UNUserNotificationCenter.current().add(request)
     }
 }
+
+extension NotificationService {
+    /// Current notification permission, for display in Settings.
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+}

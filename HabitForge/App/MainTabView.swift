@@ -44,14 +44,12 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .overlay(alignment: .bottomTrailing) {
-            // Global quick add — the Todos tab has its own per-view buttons.
+            // Global quick add — the Todos tab has its own per-view buttons, and on
+            // Settings the button only covered the rows without being a useful action.
             // Bottom padding clears the tab bar (49pt + 34pt home indicator) so the
             // button floats above it instead of covering the Settings icon.
-            if selectedTab != .todos {
+            if selectedTab == .habits || selectedTab == .workouts {
                 Button {
-                    if todoViewModel == nil {
-                        todoViewModel = TodoViewModel(modelContext: modelContext)
-                    }
                     showingGlobalQuickAdd = true
                 } label: {
                     Image(systemName: "plus.circle.fill")
@@ -59,21 +57,37 @@ struct MainTabView: View {
                         .foregroundStyle(.blue)
                         .shadow(color: .blue.opacity(0.3), radius: 8, x: 0, y: 4)
                 }
+                // Distinct from the per-tab "+" in the toolbar (which adds a habit or a
+                // routine) — without this both read as plain "Add" to VoiceOver.
+                .accessibilityLabel("Quick add todo")
+                .accessibilityIdentifier("globalQuickAdd")
                 .padding(.trailing, 20)
                 .padding(.bottom, 64)
             }
         }
         .sheet(isPresented: $showingGlobalQuickAdd) {
-            if let vm = todoViewModel {
-                QuickAddView(viewModel: vm, defaultDestination: .inbox)
-            }
+            // The view model is built up front, below. Creating it inside the button action
+            // set `todoViewModel` and `showingGlobalQuickAdd` in the same frame, so this
+            // closure captured a nil view model and the sheet came up empty — the two-sheet
+            // rule in HANDOFF gotcha #1, in a different disguise.
+            QuickAddView(viewModel: quickAddViewModel(), defaultDestination: .inbox)
         }
         .task {
+            if todoViewModel == nil {
+                todoViewModel = TodoViewModel(modelContext: modelContext)
+            }
             let granted = await NotificationService.shared.requestPermission()
             if granted {
                 NotificationService.shared.rescheduleAllHabitReminders(habits: habitsForReminders)
             }
         }
+    }
+
+    /// The shared todo view model, or a fresh one if the `.task` above has not run yet, so
+    /// the quick add sheet can never present without a model. Deliberately does not assign
+    /// back to `@State` — that would mutate state during a view update.
+    private func quickAddViewModel() -> TodoViewModel {
+        todoViewModel ?? TodoViewModel(modelContext: modelContext)
     }
 }
 

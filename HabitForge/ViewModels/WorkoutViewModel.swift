@@ -365,18 +365,22 @@ class WorkoutViewModel {
         restTimerRunning = true
         restTimer?.invalidate()
         restTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            // Resolve `self` here rather than inside the Task: capturing the weak var across
+            // the concurrency boundary is an error under the Swift 6 language mode.
+            guard let self else { return }
             Task { @MainActor in
-                guard let self else { return }
-                if self.restTimerSeconds > 0 {
-                    self.restTimerSeconds -= 1
-                    if self.restTimerSeconds == 0 {
-                        self.stopRestTimer()
-                    }
-                } else {
-                    self.stopRestTimer()
-                }
+                self.tickRestTimer()
             }
         }
+    }
+
+    @MainActor
+    private func tickRestTimer() {
+        guard restTimerSeconds > 1 else {
+            stopRestTimer()
+            return
+        }
+        restTimerSeconds -= 1
     }
 
     func adjustRestTimer(by seconds: Int) {

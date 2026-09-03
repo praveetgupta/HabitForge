@@ -4,7 +4,8 @@
 > This file lives at the root of the Xcode project folder (next to `HabitForge.xcodeproj`).
 > It is the single source of truth for project state, conventions, and next steps.
 >
-> **Snapshot date:** September 2026 (updated after Workouts module implementation)
+> **Snapshot date:** September 2026 (updated after the Settings, units, export and
+> open-source-release pass)
 > **Verify before trusting:** This document describes the state at handoff. Before making
 > changes, run `xcodebuild` (see Build section) and read the actual files. If this document
 > and the code disagree, **the code wins** — then update this file.
@@ -40,12 +41,19 @@ subscription model.
 | Architecture | MVVM with `@Observable` view models | In use |
 | Charts | Swift Charts (built into iOS 16+, no package) | In use |
 | Notifications | `UserNotifications` (local only) | Working for habits |
-| Auth | Firebase Auth | **Not integrated — stub only** |
-| Subscriptions | RevenueCat | **Not integrated — stub only** |
+| Preferences | `AppSettings` over `UserDefaults` | Units, appearance, default rest |
+| Export | `DataExportService` → JSON | Working, shared via `ShareLink` |
+| Auth | — | **Removed.** The app is local-only, with no account |
+| Subscriptions | — | **Removed.** No paywall, no IAP |
 | Cloud sync | CloudKit | **Not integrated — disabled on purpose** |
 
-No third-party Swift packages are currently installed. Everything is first-party Apple
-frameworks. Do not add dependencies without a clear reason.
+No third-party Swift packages are installed, and this is a deliberate product property, not
+an accident: "zero dependencies, first-party frameworks only" is advertised in the README.
+Do not add one without a very clear reason.
+
+The Firebase Auth and RevenueCat stubs that used to live in `Services/` and `Views/Auth/`
+were deleted in September 2026 — they were never wired up, and a non-functional
+"$4.99/month Subscribe" button in a public repository was worse than no button.
 
 ---
 
@@ -153,12 +161,33 @@ frameworks. Do not add dependencies without a clear reason.
   controls, and the discard button all carry labels; the global FAB is reachable as
   "Add". Extend this pattern to new controls.
 
+### ✅ DONE — Settings, units and data export (September 2026)
+
+- **`Services/AppSettings.swift`** — `@Observable` singleton over `UserDefaults`:
+  `weightUnit` (kg/lb), `appearance` (system/dark/light), `defaultRestSeconds`.
+  Views hold it as `@State private var settings = AppSettings.shared`.
+- **`WeightUnit`** — weights stay in kilograms in the store; the enum converts for display
+  and entry only. Applied across every workout weight site (active workout grid and its
+  column header, routine defaults editor, history, summary, progress, exercise detail).
+- **`SettingsView`** — real screen replacing the stub: unit / appearance / rest pickers,
+  notification permission status with a jump to iOS Settings, JSON export via `ShareLink`,
+  Archive, and a confirmed "Reset all data".
+- **`Views/Settings/ArchiveView.swift`** — restores or permanently deletes archived habits
+  and routines. Before this, archiving was a one-way trip.
+- **`Services/DataExportService.swift`** — `Codable` snapshot of the whole store, pretty
+  printed, ISO-8601 dates, `formatVersion` 1. `@MainActor` because it reads SwiftData models.
+- **`Services/DemoData.swift`** — DEBUG-only, runs on the `-HabitForgeDemoData` launch
+  argument; wipes and reseeds a fixed dataset so README screenshots are reproducible.
+- **Tests** — `HabitForgeTests` is now a real Swift Testing suite (39 tests: habits, todos,
+  workouts, units, seeding, export round-trip). `HabitForgeUITests` gained a smoke suite and
+  `ScreenshotTests`.
+
 ### 📋 NOT STARTED
 
-- Firebase Auth (email + Sign in with Apple).
-- RevenueCat paywall and subscription gating.
+- Widgets (Home Screen / Lock Screen) and a watchOS companion.
+- Rest-timer notification while backgrounded.
+- JSON *import* to match the export.
 - Onboarding flow.
-- Settings screens beyond placeholders.
 - App Store assets, TestFlight, submission.
 
 ---
@@ -168,9 +197,9 @@ frameworks. Do not add dependencies without a clear reason.
 ```
 HabitForge/
 ├── App/
-│   ├── HabitForgeApp.swift        @main; registers all 14 models in .modelContainer;
-│   │                              .task requests notification permission;
-│   │                              .task seeds the exercise library
+│   ├── HabitForgeApp.swift        @main; builds the ModelContainer explicitly from
+│   │                              HabitForgeSchema and seeds against its mainContext;
+│   │                              applies the appearance preference
 │   └── MainTabView.swift          4 tabs (tagged AppTab enum); global Quick Add FAB
 │                                  on non-Todos tabs; habit reminder rescheduling
 │
@@ -212,19 +241,14 @@ HabitForge/
 │   │   (+ CreateCustomExerciseView), ActiveWorkoutView (+ ActiveExerciseCard,
 │   │   SetLogRow, RestTimerBar), WorkoutSummaryView, ExerciseDetailView,
 │   │   WorkoutHistoryView (+ SessionDetailView), WorkoutProgressView
-│   ├── Settings/                  STUBS — SettingsView, SubscriptionView
-│   └── Auth/                      STUB — LoginView
-
-HabitForgeUITests/
-└── WorkoutFlowUITests.swift       end-to-end workout flow tests (self-contained)
-│   ├── Settings/                  STUBS — SettingsView, SubscriptionView
-│   └── Auth/                      STUB — LoginView
+│   └── Settings/                  COMPLETE — SettingsView, ArchiveView
 │
 ├── Services/
 │   ├── NotificationService.swift  WORKING for habits; todo path exists
 │   ├── ExerciseSeedData.swift     88-exercise seed library; idempotent
-│   ├── AuthService.swift          STUB
-│   └── SubscriptionService.swift  STUB
+│   ├── AppSettings.swift          units / appearance / default rest, over UserDefaults
+│   ├── DataExportService.swift    Codable JSON snapshot of the whole store
+│   └── DemoData.swift             DEBUG only; screenshot dataset
 │
 ├── Components/
 │   ├── ProgressRingView.swift     reusable ring; used by dashboard summary
@@ -233,6 +257,19 @@ HabitForgeUITests/
 └── Extensions/
     ├── Color+Hex.swift            Color(hex:) — used everywhere for habit colors
     └── Date+Helpers.swift         startOfDay, isToday, relativeDescription, etc.
+
+HabitForgeTests/
+└── HabitForgeTests.swift          Swift Testing suites over in-memory containers
+
+HabitForgeUITests/
+├── HabitForgeUITests.swift        tab / settings / quick-add smoke tests
+├── WorkoutFlowUITests.swift       end-to-end workout flow (self-contained)
+└── ScreenshotTests.swift          regenerates screenshots/ from DemoData
+
+Tools/
+├── make_icon.swift                CoreGraphics app-icon generator
+├── screenshots.sh                 runs ScreenshotTests and files the PNGs
+└── ci-pick-simulator.py           resolves a simulator name for CI
 ```
 
 ---
@@ -272,8 +309,15 @@ in `.onAppear` and held in `@State`. They call `try? modelContext.save()` after 
 **Colors come from hex strings** on the models via `Color(hex:)`. Do not hardcode colors
 in views for anything habit- or routine-specific.
 
-**Dark mode is the primary design target.** Branding leans "old money": deep near-black
-backgrounds, gold accents (`#C9A84C`, `#D4AF61`, `#E8C96B`), serif type for the wordmark.
+**Dark mode is the primary design target.** Deep near-black backgrounds with a blue accent
+(`#0A84FF`, the iOS system blue; `#6FB4FF` light, `#0055B8` deep). The `AccentColor` asset
+carries it, and `Tools/make_icon.swift` generates the app icon from the same palette — a
+blue progress ring around a serif "H". The icon was gold until September 2026; if you change
+the palette, change it in both places and re-run the generator.
+
+**Weights are stored in kilograms, always.** `PerformedSet.weightKg`,
+`RoutineExercise.defaultWeightKg` and `Exercise.prMaxWeight` are canonical. `WeightUnit`
+converts at the display and text-field boundary only. Never persist a converted value.
 
 ---
 
@@ -332,7 +376,45 @@ backgrounds, gold accents (`#C9A84C`, `#D4AF61`, `#E8C96B`), serif type for the 
 
 13. **SwiftUI TextField placeholders get rewritten by Form sections** — a
     `TextField("Routine name")` can surface as placeholder 'Name' in the accessibility
-    tree. Query by `.accessibilityIdentifier`, not by placeholder text.
+    tree. Query by `.accessibilityIdentifier`, not by placeholder text. A `Picker` in a
+    `List` surfaces as a **button labelled `"Title, Selection"`** (e.g.
+    `"Weight unit, Kilograms (kg)"`), so match those by prefix, not exact label.
+
+14. **`@Environment(\.modelContext)` read inside an `App` is not the scene's context.**
+    `.modelContainer(for:)` configures the environment for the scene's *content*, so the
+    App-level read returns a different context and any launch-time seeding silently lands in
+    the wrong store. `HabitForgeApp` therefore builds the `ModelContainer` itself and seeds
+    against `modelContainer.mainContext`. Do not "simplify" this back.
+
+15. **Creating a view model in a button action and presenting a sheet in the same frame
+    gives you a blank sheet.** The `.sheet` content closure captures the old `@State` value,
+    which is still nil. This is gotcha #1 wearing a different hat, and it shipped broken in
+    the global quick-add FAB: tapping "+" on Habits or Workouts opened nothing. The view
+    model is now built in `MainTabView`'s `.task`, with a non-mutating fallback for the
+    first frame. Covered by `testGlobalQuickAddOpensAndAddsATodo`.
+
+16. **SourceKit in a plain editor will report hundreds of phantom "Cannot find type X in
+    scope" errors** for this project, because the app's files are only a module in the
+    context of the Xcode target. Trust `xcodebuild`, not the editor's inline diagnostics.
+
+17. **UI tests share one app container and one simulator device.** Gotcha #12 said each test
+    gets a fresh container; that is only reliably true across *parallel* clones. Run serially
+    (`-parallel-testing-enabled NO`) and state carries over — both the SwiftData store and
+    `UserDefaults`. Two consequences, both of which bit:
+    - `ScreenshotTests` seeds a demo dataset, which left `WorkoutFlowUITests` starting a
+      five-exercise routine where `"Complete set 1"` matched five buttons. It now relaunches
+      with `-HabitForgeResetStore` in `tearDownWithError` to wipe up after itself.
+    - A UI test that asserts a *default* preference will fail on its second run once it has
+      written a new value. `testSwitchingWeightUnitSticksBothWays` asserts a round trip
+      instead.
+
+18. **`runsForEachTargetApplicationUIConfiguration` leaves the device reconfigured.** The
+    Xcode template turns it on in `HabitForgeUITestsLaunchTests`, which reruns the launch
+    capture per UI configuration and leaves the last one applied. Serially, the next test
+    inherits it: in `CreateRoutineView` the "Add Exercise" row landed off-screen, and a
+    SwiftUI `List` drops off-screen rows from the accessibility tree, so the query found
+    nothing no matter how long it waited. It is now `false`. If you ever set it back, expect
+    `WorkoutFlowUITests` to fail in serial runs only.
 
 ---
 
@@ -405,15 +487,16 @@ start a second session and confirm the PREVIOUS column shows the first session's
 
 In rough order:
 
-1. **Auth** — Firebase Auth with email + Sign in with Apple; gate the app behind
-   `AuthViewModel.isAuthenticated`. Add `GoogleService-Info.plist` (not committed).
-2. **Subscriptions** — RevenueCat. Free tier: 3 habits, basic todos, 3 routines, 30-day
-   history. Pro ($4.99/mo, $39.99/yr): unlimited everything, custom exercises, full
-   history, advanced charts, export, cloud sync.
-3. **Onboarding** — 3–4 screens explaining the three modules.
-4. **Settings** — profile, units (kg/lb), notification preferences, data export.
-5. **Ship** — paid developer account, App Store Connect listing, screenshots for 6.7"
-   and 6.5", privacy policy, TestFlight, submit.
+1. **Widgets** — Home Screen and Lock Screen widgets for today's habit rings and the next
+   workout. The most requested thing a tracker like this can have.
+2. **watchOS companion** — logging sets at the rack is the real use case.
+3. **Rest-timer notification** — the timer currently stops when the app backgrounds; a local
+   notification is the obvious fix and needs no capability.
+4. **JSON import** — the export format is versioned and documented; import is the other half.
+5. **Onboarding** — 3–4 screens explaining the three modules.
+6. **Reps-based PRs / estimated 1RM** — PRs are weight-only today, deliberately.
+7. **Ship** — paid developer account, App Store Connect listing, screenshots for 6.7"
+   and 6.5", privacy policy (easy: no data leaves the device), TestFlight, submit.
 
 ---
 
@@ -425,24 +508,16 @@ In rough order:
 - Do not replace `confirmationDialog` long-press menus with `contextMenu`.
 - Do not rewrite the Habits or Todos modules; they are done and tested. Touch them only
   to fix a specific reported bug.
-- Do not commit `GoogleService-Info.plist` or any signing assets.
-- Do not add Swift packages beyond Firebase and RevenueCat when those milestones arrive.
+- Do not commit signing assets or any credential file.
+- Do not add Swift packages. Zero dependencies is an advertised property of this project.
 - Do not put a fixed `.height(...)` detent back on QuickAddView — it clips.
+- Do not persist a pound value into a `...Kg` field — convert at the UI boundary only.
+- Do not reintroduce an account, a paywall or analytics; the README promises none of them.
 
 ---
 
 ## 11. `.gitignore`
 
-```
-*.xcuserdata/
-*.xcworkspace/xcuserdata/
-DerivedData/
-build/
-*.ipa
-*.dSYM.zip
-GoogleService-Info.plist
-Pods/
-.build/
-.swiftpm/
-.DS_Store
-```
+See the committed [`.gitignore`](.gitignore). It covers Xcode user state, `DerivedData/`,
+build products, `*.xcresult/`, SwiftPM caches, `.DS_Store`, and — importantly — signing
+assets (`*.mobileprovision`, `*.p12`, `*.cer`) and `GoogleService-Info.plist`.

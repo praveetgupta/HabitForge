@@ -6,19 +6,20 @@ import UniformTypeIdentifiers
 import AppKit
 
 // HabitForge app icon generator.
-// Family style (cross-referenced from DriveVerse + AutoRenew): flat gradient + single glyph.
-// HabitForge branding (HANDOFF §5): deep near-black, gold #C9A84C / #D4AF61 / #E8C96B, serif.
+// Style: flat gradient ground + a single glyph.
+// Branding (HANDOFF §5): cool near-black ground, blue #0A84FF / #4DA3FF / #6FB4FF,
+// matching the accent colour and the progress rings inside the app.
 // Glyph: the app's signature progress ring with a gap, flame or serif-H in the centre.
-// Usage: swift gen_icon.swift <output.png> <flame|monogram>
+// Usage: swift Tools/make_icon.swift <output.png> <flame|monogram>
 
 let size = 1024
 
 // Palette
-let bgTopLeft     = CGColor(red: 0.070, green: 0.062, blue: 0.047, alpha: 1)  // #12100C warm near-black
-let bgBottomRight = CGColor(red: 0.157, green: 0.129, blue: 0.078, alpha: 1)  // #282014 dark bronze
-let goldLight     = CGColor(red: 0.910, green: 0.788, blue: 0.420, alpha: 1)  // #E8C96B
-let goldMid       = CGColor(red: 0.788, green: 0.659, blue: 0.298, alpha: 1)  // #C9A84C
-let goldDeep      = CGColor(red: 0.600, green: 0.478, blue: 0.200, alpha: 1)  // #997A33
+let bgTopLeft     = CGColor(red: 0.043, green: 0.055, blue: 0.078, alpha: 1)  // #0B0E14 cool near-black
+let bgBottomRight = CGColor(red: 0.086, green: 0.125, blue: 0.227, alpha: 1)  // #16203A deep navy
+let accentLight   = CGColor(red: 0.435, green: 0.706, blue: 1.000, alpha: 1)  // #6FB4FF
+let accentMid     = CGColor(red: 0.039, green: 0.518, blue: 1.000, alpha: 1)  // #0A84FF (iOS system blue)
+let accentDeep    = CGColor(red: 0.000, green: 0.333, blue: 0.722, alpha: 1)  // #0055B8
 
 func makeContext() -> CGContext {
     guard let space = CGColorSpace(name: CGColorSpace.sRGB),
@@ -48,10 +49,10 @@ func drawBackground(_ ctx: CGContext) {
     }
     ctx.drawLinearGradient(grad, start: CGPoint(x: 0, y: CGFloat(size)), end: CGPoint(x: CGFloat(size), y: 0), options: [])
 
-    // Soft gold glow behind the glyph
+    // Soft blue glow behind the glyph
     let glowColors = [
-        CGColor(red: 0.910, green: 0.788, blue: 0.420, alpha: 0.14),
-        CGColor(red: 0.910, green: 0.788, blue: 0.420, alpha: 0.0)
+        CGColor(red: 0.435, green: 0.706, blue: 1.000, alpha: 0.16),
+        CGColor(red: 0.435, green: 0.706, blue: 1.000, alpha: 0.0)
     ] as CFArray
     guard let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: glowColors, locations: [0, 1]) else {
         fatalError("glow")
@@ -62,7 +63,7 @@ func drawBackground(_ ctx: CGContext) {
                            options: [])
 }
 
-/// The signature progress ring: gold arc, round caps, gap at the top-right (~280° sweep).
+/// The signature progress ring: blue arc, round caps, gap at the top-right (~280° sweep).
 func drawRing(_ ctx: CGContext) {
     let center = CGPoint(x: 512, y: 512)
     let radius: CGFloat = 302
@@ -83,11 +84,11 @@ func drawRing(_ ctx: CGContext) {
     ctx.replacePathWithStrokedPath()
     ctx.clip()
 
-    let colors = [goldLight, goldMid, goldDeep] as CFArray
+    let colors = [accentLight, accentMid, accentDeep] as CFArray
     guard let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors, locations: [0, 0.55, 1]) else {
         fatalError("ring gradient")
     }
-    // Gold falls top-left → bottom-right like the background
+    // Blue falls top-left → bottom-right like the background
     ctx.drawLinearGradient(grad,
                            start: CGPoint(x: 512 - radius, y: 512 + radius),
                            end: CGPoint(x: 512 + radius, y: 512 - radius),
@@ -97,7 +98,7 @@ func drawRing(_ ctx: CGContext) {
     // Small circular "progress dot" capping the arc's leading end (reads as the ring's head)
     let dotAngle = gapCenter - gapHalf
     let dot = CGPoint(x: center.x + radius * cos(dotAngle), y: center.y + radius * sin(dotAngle))
-    ctx.setFillColor(goldLight)
+    ctx.setFillColor(accentLight)
     ctx.fillEllipse(in: CGRect(x: dot.x - lineWidth * 0.62, y: dot.y - lineWidth * 0.62,
                                width: lineWidth * 1.24, height: lineWidth * 1.24))
 }
@@ -137,7 +138,7 @@ func drawFlame(_ ctx: CGContext) {
     ctx.addPath(flame)
     ctx.clip(using: .evenOdd)
 
-    let colors = [goldLight, goldMid] as CFArray
+    let colors = [accentLight, accentMid] as CFArray
     guard let grad = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: colors, locations: [0, 1]) else {
         fatalError("flame gradient")
     }
@@ -148,12 +149,12 @@ func drawFlame(_ ctx: CGContext) {
     ctx.restoreGState()
 }
 
-/// Variant B — serif "H" monogram (old-money wordmark style) inside the ring.
+/// Variant B — serif "H" monogram inside the ring.
 func drawMonogram(_ ctx: CGContext) {
     let font = CTFontCreateWithName("Didot-Bold" as CFString, 400, nil)
     let attrs: [NSAttributedString.Key: Any] = [
         .font: font,
-        .foregroundColor: goldLight
+        .foregroundColor: accentLight
     ]
     let line = CTLineCreateWithAttributedString(NSAttributedString(string: "H", attributes: attrs))
 

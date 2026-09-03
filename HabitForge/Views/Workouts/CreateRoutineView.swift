@@ -1,4 +1,5 @@
 import SwiftUI
+import SwiftData
 
 /// Creates a new routine, or edits an existing one when `routine` is passed.
 /// In create mode a draft Routine is inserted as soon as the first exercise is
@@ -223,6 +224,8 @@ struct RoutineExerciseEditorView: View {
     @Bindable var routineExercise: RoutineExercise
     let viewModel: WorkoutViewModel
 
+    @State private var settings = AppSettings.shared
+
     var body: some View {
         Form {
             Section("Exercise") {
@@ -238,12 +241,15 @@ struct RoutineExerciseEditorView: View {
                 Stepper("Reps: \(routineExercise.defaultReps)", value: $routineExercise.defaultReps, in: 1...100)
 
                 HStack {
-                    Text("Weight (kg)")
+                    Text("Weight (\(settings.weightUnit.shortName))")
                     Spacer()
                     TextField("Optional", value: Binding(
-                        get: { routineExercise.defaultWeightKg ?? 0 },
-                        set: { routineExercise.defaultWeightKg = $0 == 0 ? nil : $0 }
-                    ), format: .number)
+                        get: { settings.weightUnit.fromKilograms(routineExercise.defaultWeightKg ?? 0) },
+                        set: {
+                            routineExercise.defaultWeightKg =
+                                $0 == 0 ? nil : settings.weightUnit.toKilograms($0)
+                        }
+                    ), format: .number.precision(.fractionLength(0...1)))
                         .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(width: 90)
@@ -271,7 +277,7 @@ struct RoutineExerciseEditorView: View {
         .navigationTitle("Exercise Defaults")
         .navigationBarTitleDisplayMode(.inline)
         .onDisappear {
-            try? viewModel.saveContext()
+            viewModel.saveContext()
         }
     }
 }

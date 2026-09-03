@@ -277,6 +277,8 @@ private struct ResumeBanner: View {
 struct SessionRowView: View {
     let session: WorkoutSession
 
+    @State private var settings = AppSettings.shared
+
     var body: some View {
         HStack(spacing: 12) {
             Text(session.routine?.icon ?? "🏋️")
@@ -320,7 +322,7 @@ struct SessionRowView: View {
 
     private var volumeText: String {
         session.totalVolumeKg > 0
-            ? "\(Int(session.totalVolumeKg).formatted()) kg"
+            ? settings.weightUnit.format(kilograms: session.totalVolumeKg)
             : "\(session.performedExercises.count) exercises"
     }
 

@@ -59,6 +59,9 @@ struct SessionDetailView: View {
     let session: WorkoutSession
 
     @State private var notes = ""
+    @State private var settings = AppSettings.shared
+
+    private var unit: WeightUnit { settings.weightUnit }
 
     var body: some View {
         List {
@@ -83,7 +86,7 @@ struct SessionDetailView: View {
                                 .foregroundStyle(.secondary)
                             Spacer()
                             if let w = set.weightKg, let r = set.reps {
-                                Text("\(Int(w)) kg × \(r)")
+                                Text("\(unit.format(kilograms: w)) × \(r)")
                                     .font(.subheadline.monospacedDigit())
                             } else if let r = set.reps {
                                 Text("\(r) reps")
@@ -120,7 +123,7 @@ struct SessionDetailView: View {
     }
 
     private var volumeText: String {
-        session.totalVolumeKg > 0 ? "\(Int(session.totalVolumeKg).formatted()) kg" : "—"
+        session.totalVolumeKg > 0 ? unit.format(kilograms: session.totalVolumeKg) : "—"
     }
 }
 

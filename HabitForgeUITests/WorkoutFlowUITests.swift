@@ -4,6 +4,11 @@ import XCTest
 /// routine creation → start → set logging → rest timer → finish → summary → history.
 /// Fully self-contained: creates its own routine via the UI, so it passes against a
 /// fresh app container.
+///
+/// Waits that assert something *must* appear are generous, because these run last in the
+/// suite when the machine has had simulators up for several minutes and sheet presentation
+/// can take well over the 4s these used to allow. The short timeouts on `if`/`guard` probes
+/// are deliberate — those ask "is this already here?" and should not stall.
 final class WorkoutFlowUITests: XCTestCase {
 
     override func setUpWithError() throws {
@@ -19,17 +24,17 @@ final class WorkoutFlowUITests: XCTestCase {
 
         // Empty library: the ContentUnavailableView offers a New Routine action.
         let newRoutine = app.buttons["New Routine"].firstMatch
-        XCTAssertTrue(newRoutine.waitForExistence(timeout: 3), "New Routine button missing")
+        XCTAssertTrue(newRoutine.waitForExistence(timeout: 15), "New Routine button missing")
         newRoutine.tap()
 
         let nameField = app.textFields["routineNameField"]
-        XCTAssertTrue(nameField.waitForExistence(timeout: 4), "Routine name field missing")
+        XCTAssertTrue(nameField.waitForExistence(timeout: 15), "Routine name field missing")
         nameField.tap()
         nameField.typeText("QA Routine")
 
         // Add one exercise via the picker before saving (exercises the draft path).
         let addExercise = app.buttons["Add Exercise"].firstMatch
-        XCTAssertTrue(addExercise.waitForExistence(timeout: 4), "Add Exercise row missing")
+        XCTAssertTrue(addExercise.waitForExistence(timeout: 15), "Add Exercise row missing")
         addExercise.tap()
 
         // The picker's library is sorted by name; "Ab Wheel Rollout" is first.
@@ -37,15 +42,15 @@ final class WorkoutFlowUITests: XCTestCase {
         let firstExercise = app.buttons.matching(
             NSPredicate(format: "label BEGINSWITH %@", "Ab Wheel Rollout")
         ).firstMatch
-        XCTAssertTrue(firstExercise.waitForExistence(timeout: 5), "Exercise list did not appear")
+        XCTAssertTrue(firstExercise.waitForExistence(timeout: 15), "Exercise list did not appear")
         firstExercise.tap()
 
         let save = app.buttons["Save"]
-        XCTAssertTrue(save.waitForExistence(timeout: 4), "Save button missing")
+        XCTAssertTrue(save.waitForExistence(timeout: 15), "Save button missing")
         save.tap()
 
         XCTAssertTrue(
-            app.buttons["Start Workout"].firstMatch.waitForExistence(timeout: 5),
+            app.buttons["Start Workout"].firstMatch.waitForExistence(timeout: 15),
             "Routine card did not appear after saving"
         )
     }
@@ -57,10 +62,10 @@ final class WorkoutFlowUITests: XCTestCase {
         resume.tap()
 
         let close = app.buttons["Close"].firstMatch
-        XCTAssertTrue(close.waitForExistence(timeout: 4), "Close button missing in active workout")
+        XCTAssertTrue(close.waitForExistence(timeout: 15), "Close button missing in active workout")
         close.tap()
         let discard = app.buttons["Discard Workout"]
-        XCTAssertTrue(discard.waitForExistence(timeout: 3), "Discard dialog did not appear")
+        XCTAssertTrue(discard.waitForExistence(timeout: 15), "Discard dialog did not appear")
         discard.tap()
         _ = resume.waitForNonExistence(timeout: 4)
     }
@@ -72,7 +77,7 @@ final class WorkoutFlowUITests: XCTestCase {
             resume.tap()
         } else {
             let start = app.buttons["Start Workout"].firstMatch
-            XCTAssertTrue(start.waitForExistence(timeout: 5), "No Start Workout button found")
+            XCTAssertTrue(start.waitForExistence(timeout: 15), "No Start Workout button found")
             start.tap()
         }
     }
@@ -86,11 +91,11 @@ final class WorkoutFlowUITests: XCTestCase {
 
         // Complete set 1 (reps prefilled) — starts the rest timer.
         let check = app.buttons["Complete set 1"]
-        XCTAssertTrue(check.waitForExistence(timeout: 5), "Set 1 checkmark not found")
+        XCTAssertTrue(check.waitForExistence(timeout: 15), "Set 1 checkmark not found")
         check.tap()
 
         let plus15 = app.buttons["+15s"]
-        XCTAssertTrue(plus15.waitForExistence(timeout: 4), "Rest timer bar did not appear")
+        XCTAssertTrue(plus15.waitForExistence(timeout: 15), "Rest timer bar did not appear")
 
         func currentRestSeconds() -> Int? {
             let label = app.staticTexts["restCountdown"]
@@ -117,10 +122,10 @@ final class WorkoutFlowUITests: XCTestCase {
 
         // −15s shortens a fresh timer.
         let check2 = app.buttons["Complete set 2"]
-        XCTAssertTrue(check2.waitForExistence(timeout: 4))
+        XCTAssertTrue(check2.waitForExistence(timeout: 15))
         check2.tap()
         let minus15 = app.buttons["−15s"]
-        XCTAssertTrue(minus15.waitForExistence(timeout: 4))
+        XCTAssertTrue(minus15.waitForExistence(timeout: 15))
         let beforeMinus = currentRestSeconds() ?? 0
         minus15.tap()
         let afterMinus = currentRestSeconds() ?? 0
@@ -129,7 +134,7 @@ final class WorkoutFlowUITests: XCTestCase {
         // Clean up: discard the session.
         app.buttons["Close"].firstMatch.tap()
         let discard = app.buttons["Discard Workout"]
-        XCTAssertTrue(discard.waitForExistence(timeout: 3), "Discard dialog did not appear")
+        XCTAssertTrue(discard.waitForExistence(timeout: 15), "Discard dialog did not appear")
         discard.tap()
     }
 
@@ -147,12 +152,12 @@ final class WorkoutFlowUITests: XCTestCase {
         }
 
         let finish = app.buttons["Finish"]
-        XCTAssertTrue(finish.waitForExistence(timeout: 4))
+        XCTAssertTrue(finish.waitForExistence(timeout: 15))
         finish.tap()
 
         // Summary sheet appears.
         XCTAssertTrue(
-            app.navigationBars["Workout Complete"].waitForExistence(timeout: 6),
+            app.navigationBars["Workout Complete"].waitForExistence(timeout: 15),
             "Workout summary sheet did not appear after Finish"
         )
 
@@ -164,7 +169,7 @@ final class WorkoutFlowUITests: XCTestCase {
 
         // Back on the dashboard: Recent Sessions is listed.
         XCTAssertTrue(
-            app.staticTexts["Recent Sessions"].waitForExistence(timeout: 5),
+            app.staticTexts["Recent Sessions"].waitForExistence(timeout: 15),
             "Dashboard did not reappear after finishing"
         )
 
@@ -172,7 +177,7 @@ final class WorkoutFlowUITests: XCTestCase {
         let seeAll = app.buttons["See All"]
         if seeAll.waitForExistence(timeout: 2) {
             seeAll.tap()
-            XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars["History"].waitForExistence(timeout: 15))
             app.navigationBars.buttons.firstMatch.tap() // back
         }
 
@@ -180,7 +185,7 @@ final class WorkoutFlowUITests: XCTestCase {
         let chart = app.buttons.matching(NSPredicate(format: "label CONTAINS[c] %@", "Progress")).firstMatch
         if chart.exists {
             chart.tap()
-            XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 5))
+            XCTAssertTrue(app.navigationBars["Progress"].waitForExistence(timeout: 15))
         }
     }
 }

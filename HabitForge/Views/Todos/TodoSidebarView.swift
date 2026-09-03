@@ -24,7 +24,7 @@ struct TodoSidebarView: View {
                     ProgressView()
                 }
             }
-            .navigationTitle("Tasks")
+            .navigationTitle("Todos")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {

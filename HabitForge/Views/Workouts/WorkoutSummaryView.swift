@@ -7,6 +7,7 @@ struct WorkoutSummaryView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var mood = ""
+    @State private var settings = AppSettings.shared
 
     private let moodOptions = ["😞", "😐", "🙂", "😄"]
 
@@ -110,7 +111,7 @@ struct WorkoutSummaryView: View {
     }
 
     private var volumeText: String {
-        session.totalVolumeKg > 0 ? "\(Int(session.totalVolumeKg).formatted()) kg" : "—"
+        session.totalVolumeKg > 0 ? settings.weightUnit.format(kilograms: session.totalVolumeKg) : "—"
     }
 }
 
