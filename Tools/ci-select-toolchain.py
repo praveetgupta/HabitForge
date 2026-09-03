@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """Prepares a usable Xcode + iPhone simulator on a CI runner, and prints both.
 
-GitHub's macOS runners have burned us three ways here, so this stops inferring and
-arranges things explicitly:
+A runner does not necessarily have an iPhone simulator ready to use: it can have iOS
+runtimes installed with no *device* created against them, and `xcodebuild` can only
+target devices. It may also carry an Xcode newer than its own macOS. So rather than
+hoping a device exists, pick an Xcode, create a device against one of that Xcode's own
+iOS runtimes (a too-new runtime is invisible to it), boot it, and address it by UDID —
+which also sidesteps `simctl` state being shared between Xcodes.
 
-  * The newest installed Xcode can be newer than the runner's macOS (Xcode 26.3 on
-    macOS 15.7), a pairing Xcode does not support.
-  * `xcrun simctl list runtimes` reporting iOS runtimes does not mean any iPhone
-    *device* has been created against them — and `xcodebuild` can only target devices.
-    With none, `-showdestinations` lists visionOS entries and a bare
-    "Any iOS Simulator Device" placeholder, and every concrete destination fails.
-  * `simctl` state is shared across Xcodes, so a device seen under one may be
-    unusable by another.
-
-So: pick an Xcode (preferring the 16.x line, which is the stable pairing for macOS 15),
-then create a device against one of that Xcode's own iOS runtimes and address it by
-UDID, which sidesteps name and OS ambiguity entirely.
+Note that when this project still carried unused Firebase and RevenueCat package
+references, every `xcodebuild` invocation stalled resolving that graph and listed no
+iOS destinations at all. If destination enumeration ever goes strange again, check the
+package graph before suspecting the simulator.
 
 Prints two shell-ready lines:
 
