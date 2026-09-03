@@ -415,6 +415,15 @@ converts at the display and text-field boundary only. Never persist a converted 
       written a new value. `testSwitchingWeightUnitSticksBothWays` asserts a round trip
       instead.
 
+19. **`ForEach`'s `ChartContent` conformance leaks into files that never imported
+    Charts.** Four views `import Charts`, and that extension becomes visible module-wide.
+    Inside a `Section` nested in a `ForEach` over tuples, the compiler resolved the inner
+    `ForEach` against `ChartContentBuilder`, whose `buildBlock` is not available at the
+    iOS 17 deployment target — so it built fine against a new SDK and failed against
+    18.5. `LogbookView` and `UpcomingView` now put their rows in an explicitly
+    `@ViewBuilder`-typed `rows(for:)` helper, which pins the builder. If a new
+    `Section { ForEach ... }` starts failing this way, do the same.
+
 18. **`runsForEachTargetApplicationUIConfiguration` leaves the device reconfigured.** The
     Xcode template turns it on in `HabitForgeUITestsLaunchTests`, which reruns the launch
     capture per UI configuration and leaves the last one applied. Serially, the next test

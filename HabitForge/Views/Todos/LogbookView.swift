@@ -19,9 +19,7 @@ struct LogbookView: View {
                 List {
                     ForEach(entries, id: \.date) { group in
                         Section {
-                            ForEach(group.todos, id: \.id) { todo in
-                                LogbookRow(todo: todo, viewModel: viewModel)
-                            }
+                            rows(for: group.todos)
                         } header: {
                             Text(sectionTitle(for: group.date))
                                 .font(.subheadline.weight(.semibold))
@@ -34,6 +32,18 @@ struct LogbookView: View {
             }
         }
         .navigationTitle("Logbook")
+    }
+
+    /// Explicitly `@ViewBuilder`-typed rather than inlined in the `Section`.
+    /// `ForEach`'s `ChartContent` conformance leaks module-wide from the files that
+    /// `import Charts`, and inside a `Section` nested in a `ForEach` over tuples the
+    /// compiler was resolving this against `ChartContentBuilder`, which fails to build
+    /// for iOS 17. Naming the return type pins it to `ViewBuilder`.
+    @ViewBuilder
+    private func rows(for todos: [Todo]) -> some View {
+        ForEach(todos, id: \.id) { todo in
+            LogbookRow(todo: todo, viewModel: viewModel)
+        }
     }
 
     private func sectionTitle(for date: Date) -> String {

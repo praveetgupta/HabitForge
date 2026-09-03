@@ -20,34 +20,7 @@ struct UpcomingView: View {
                 List {
                     ForEach(groups, id: \.date) { group in
                         Section {
-                            ForEach(group.todos, id: \.id) { todo in
-                                TodoRowView(todo: todo, viewModel: viewModel)
-                                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                        Button {
-                                            viewModel.moveToToday(todo)
-                                        } label: {
-                                            Label("Today", systemImage: "star.fill")
-                                        }
-                                        .tint(.orange)
-                                    }
-                                    .swipeActions(edge: .trailing) {
-                                        Button {
-                                            todoToSchedule = todo
-                                        } label: {
-                                            Label("Reschedule", systemImage: "calendar")
-                                        }
-                                        .tint(.blue)
-                                        Button {
-                                            viewModel.moveToSomeday(todo)
-                                        } label: {
-                                            Label("Someday", systemImage: "moon.zzz")
-                                        }
-                                        .tint(.purple)
-                                    }
-                                    .contextMenu {
-                                        TodoContextMenu(todo: todo, viewModel: viewModel)
-                                    }
-                            }
+                            rows(for: group.todos)
                         } header: {
                             HStack {
                                 Text(sectionTitle(for: group.date))
@@ -73,6 +46,40 @@ struct UpcomingView: View {
             ScheduleTodoSheet(todo: todo, viewModel: viewModel)
         }
         .onAppear { viewModel.autoPromoteUpcoming() }
+    }
+
+    /// Explicitly `@ViewBuilder`-typed rather than inlined in the `Section` — see the note
+    /// in `LogbookView.rows(for:)`; the same `ChartContentBuilder` ambiguity bit here.
+    @ViewBuilder
+    private func rows(for todos: [Todo]) -> some View {
+        ForEach(todos, id: \.id) { todo in
+            TodoRowView(todo: todo, viewModel: viewModel)
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        viewModel.moveToToday(todo)
+                    } label: {
+                        Label("Today", systemImage: "star.fill")
+                    }
+                    .tint(.orange)
+                }
+                .swipeActions(edge: .trailing) {
+                    Button {
+                        todoToSchedule = todo
+                    } label: {
+                        Label("Reschedule", systemImage: "calendar")
+                    }
+                    .tint(.blue)
+                    Button {
+                        viewModel.moveToSomeday(todo)
+                    } label: {
+                        Label("Someday", systemImage: "moon.zzz")
+                    }
+                    .tint(.purple)
+                }
+                .contextMenu {
+                    TodoContextMenu(todo: todo, viewModel: viewModel)
+                }
+        }
     }
 
     private func sectionTitle(for date: Date) -> String {
