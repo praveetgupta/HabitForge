@@ -25,3 +25,6 @@ GoogleService-Info.plist
 
 # macOS
 .DS_Store
+
+# CI scratch
+toolchain.env

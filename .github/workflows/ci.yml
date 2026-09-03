@@ -20,34 +20,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Select an Xcode that has the iOS Simulator platform
+      - name: Select a working Xcode and simulator
+        id: toolchain
         run: |
-          # The runner's default Xcode can ship without the iOS platform installed — its
-          # only simulator destinations are visionOS, and xcodebuild then fails with
-          # "Unable to find a destination matching the provided destination specifier".
-          # Walk the installed Xcodes newest-first and take the first one that has it.
-          for app in $(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr); do
-            if [ -d "$app/Contents/Developer/Platforms/iPhoneSimulator.platform" ]; then
-              echo "Selected $app"
-              sudo xcode-select -s "$app/Contents/Developer"
-              echo "DEVELOPER_DIR=$app/Contents/Developer" >> "$GITHUB_ENV"
-              xcodebuild -version
-              exit 0
-            fi
-            echo "Skipping $app (no iPhoneSimulator platform)"
-          done
-          echo "::error::No installed Xcode has the iOS Simulator platform"
-          exit 1
-
-      - name: Show available simulator runtimes
-        run: xcrun simctl list runtimes
-
-      - name: Pick an available iPhone simulator
-        id: sim
-        run: |
-          NAME="$(python3 Tools/ci-pick-simulator.py)"
-          echo "Using simulator: $NAME"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          # Do not assume the newest Xcode works: the runner can carry one that is newer
+          # than its own macOS (Xcode 26.3 on macOS 15.7), which enumerates no iOS
+          # Simulator destinations even though `simctl` still lists iOS runtimes.
+          # The script asks each Xcode what it can really build for and picks accordingly.
+          python3 Tools/ci-select-toolchain.py > toolchain.env
+          cat toolchain.env
+          cat toolchain.env >> "$GITHUB_ENV"
+          cat toolchain.env >> "$GITHUB_OUTPUT"
+          sudo xcode-select -s "$(grep '^DEVELOPER_DIR=' toolchain.env | cut -d= -f2-)"
+          xcodebuild -version
 
       - name: Build
         env:
@@ -56,7 +41,7 @@ jobs:
           xcodebuild build \
             -project HabitForge.xcodeproj \
             -scheme HabitForge \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -destination "${{ steps.toolchain.outputs.DESTINATION }}" \
             CODE_SIGNING_ALLOWED=NO \
             -quiet
 
@@ -67,7 +52,7 @@ jobs:
           xcodebuild test \
             -project HabitForge.xcodeproj \
             -scheme HabitForge \
-            -destination "platform=iOS Simulator,name=${{ steps.sim.outputs.name }}" \
+            -destination "${{ steps.toolchain.outputs.DESTINATION }}" \
             -only-testing:HabitForgeTests \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath TestResults.xcresult \
