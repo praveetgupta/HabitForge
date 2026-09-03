@@ -32,7 +32,7 @@ import re
 import subprocess
 import sys
 
-DEVICE_NAME = "HabitForge-CI"
+DEVICE_PREFIX = "HabitForge-CI"
 
 
 def log(message: str) -> None:
@@ -74,18 +74,32 @@ def ios_runtimes(developer_dir: str) -> list:
     return [r[1] for r in runtimes]
 
 
-def existing_device(developer_dir: str) -> str | None:
+def sdk_version(developer_dir: str) -> tuple:
+    """The iOS Simulator SDK this Xcode ships, e.g. (18, 5) for Xcode 16.4.
+
+    An Xcode can only target runtimes up to its own SDK, and `simctl` happily lists
+    newer ones because its state is shared across every installed Xcode. Creating a
+    device on a too-new runtime is exactly how CI ended up with a simulator that
+    xcodebuild refused to acknowledge.
+    """
+    result = run(["xcrun", "--sdk", "iphonesimulator", "--show-sdk-version"], developer_dir, timeout=120)
+    if result.returncode != 0:
+        return ()
+    return tuple(int(p) for p in re.findall(r"\d+", result.stdout.strip()))
+
+
+def existing_device(developer_dir: str, name: str) -> str | None:
     result = run(["xcrun", "simctl", "list", "devices", "--json"], developer_dir)
     if result.returncode != 0:
         return None
     for devices in json.loads(result.stdout).get("devices", {}).values():
         for device in devices:
-            if device.get("name") == DEVICE_NAME and device.get("isAvailable"):
+            if device.get("name") == name and device.get("isAvailable"):
                 return device["udid"]
     return None
 
 
-def create_device(developer_dir: str, runtime: dict) -> str | None:
+def create_device(developer_dir: str, runtime: dict, name: str) -> str | None:
     """Creates an iPhone against `runtime`, trying its supported types newest-first."""
     supported = [t for t in runtime.get("supportedDeviceTypes", [])
                  if t.get("name", "").startswith("iPhone")]
@@ -102,7 +116,7 @@ def create_device(developer_dir: str, runtime: dict) -> str | None:
                    reverse=True)
 
     for device_type in supported:
-        result = run(["xcrun", "simctl", "create", DEVICE_NAME,
+        result = run(["xcrun", "simctl", "create", name,
                       device_type["identifier"], runtime["identifier"]], developer_dir)
         if result.returncode == 0:
             udid = result.stdout.strip()
@@ -133,20 +147,32 @@ def main() -> int:
         developer_dir = os.path.join(app, "Contents", "Developer")
         log(f"trying {app}")
 
-        runtimes = ios_runtimes(developer_dir)
-        if not runtimes:
-            log("  no available iOS runtimes")
+        sdk = sdk_version(developer_dir)
+        if not sdk:
+            log("  no iphonesimulator SDK")
             continue
-        log("  iOS runtimes: " + ", ".join(r["name"] for r in runtimes))
+        log("  iphonesimulator SDK: " + ".".join(str(p) for p in sdk))
 
-        udid = existing_device(developer_dir)
-        if udid:
-            log(f"  reusing existing {DEVICE_NAME} ({udid})")
-        else:
-            for runtime in runtimes:
-                udid = create_device(developer_dir, runtime)
-                if udid:
-                    break
+        runtimes = ios_runtimes(developer_dir)
+        log("  iOS runtimes: " + (", ".join(r["name"] for r in runtimes) or "none"))
+        runtimes = [r for r in runtimes
+                    if tuple(int(p) for p in re.findall(r"\d+", r.get("version", "0"))) <= sdk]
+        if not runtimes:
+            log("  none of those runtimes are within this Xcode's SDK")
+            continue
+
+        udid = None
+        for runtime in runtimes:
+            # Name the device after its runtime: a device built for iOS 26.2 must never be
+            # handed to an Xcode whose SDK stops at 18.5.
+            name = f"{DEVICE_PREFIX}-{runtime['identifier'].rsplit('.', 1)[-1]}"
+            udid = existing_device(developer_dir, name)
+            if udid:
+                log(f"  reusing existing {name} ({udid})")
+                break
+            udid = create_device(developer_dir, runtime, name)
+            if udid:
+                break
         if not udid:
             log("  could not create an iPhone simulator")
             continue
