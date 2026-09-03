@@ -17,12 +17,7 @@ struct WorkoutHistoryView: View {
             } else {
                 ForEach(groupedByMonth(), id: \.month) { group in
                     Section(group.month) {
-                        ForEach(group.sessions, id: \.id) { session in
-                            NavigationLink(destination: SessionDetailView(session: session)) {
-                                SessionRowView(session: session)
-                            }
-                            .buttonStyle(.plain)
-                        }
+                        sessionRows(for: group.sessions)
                     }
                 }
             }
@@ -32,6 +27,20 @@ struct WorkoutHistoryView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             viewModel.fetchSessions()
+        }
+    }
+
+    /// Explicitly `@ViewBuilder`-typed rather than inlined — see HANDOFF gotcha #19:
+    /// `ForEach`'s `ChartContent` conformance leaks module-wide from the views that
+    /// `import Charts`, and a `ForEach` inside a `Section` inside another `ForEach`
+    /// resolves against `ChartContentBuilder`, which will not build for iOS 17.
+    @ViewBuilder
+    private func sessionRows(for sessions: [WorkoutSession]) -> some View {
+        ForEach(sessions, id: \.id) { session in
+            NavigationLink(destination: SessionDetailView(session: session)) {
+                SessionRowView(session: session)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -79,29 +88,7 @@ struct SessionDetailView: View {
 
             ForEach(session.performedExercises.sorted { $0.sortOrder < $1.sortOrder }, id: \.id) { pe in
                 Section(pe.exerciseName) {
-                    ForEach(pe.sets.sorted { $0.setNumber < $1.setNumber }, id: \.id) { set in
-                        HStack {
-                            Text("Set \(set.setNumber)")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            if let w = set.weightKg, let r = set.reps {
-                                Text("\(unit.format(kilograms: w)) × \(r)")
-                                    .font(.subheadline.monospacedDigit())
-                            } else if let r = set.reps {
-                                Text("\(r) reps")
-                                    .font(.subheadline.monospacedDigit())
-                            }
-                            if set.isPR {
-                                Text("PR")
-                                    .font(.caption2.weight(.heavy))
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Color.yellow.opacity(0.2)))
-                                    .foregroundStyle(.yellow)
-                            }
-                        }
-                    }
+                    setRows(for: pe.sets.sorted { $0.setNumber < $1.setNumber })
                 }
             }
 
@@ -119,6 +106,37 @@ struct SessionDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             notes = session.notes ?? ""
+        }
+    }
+
+    /// Explicitly `@ViewBuilder`-typed rather than inlined — see HANDOFF gotcha #19:
+    /// `ForEach`'s `ChartContent` conformance leaks module-wide from the views that
+    /// `import Charts`, and a `ForEach` inside a `Section` inside another `ForEach`
+    /// resolves against `ChartContentBuilder`, which will not build for iOS 17.
+    @ViewBuilder
+    private func setRows(for sets: [PerformedSet]) -> some View {
+        ForEach(sets, id: \.id) { set in
+            HStack {
+                Text("Set \(set.setNumber)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let w = set.weightKg, let r = set.reps {
+                    Text("\(unit.format(kilograms: w)) × \(r)")
+                        .font(.subheadline.monospacedDigit())
+                } else if let r = set.reps {
+                    Text("\(r) reps")
+                        .font(.subheadline.monospacedDigit())
+                }
+                if set.isPR {
+                    Text("PR")
+                        .font(.caption2.weight(.heavy))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.yellow.opacity(0.2)))
+                        .foregroundStyle(.yellow)
+                }
+            }
         }
     }
 

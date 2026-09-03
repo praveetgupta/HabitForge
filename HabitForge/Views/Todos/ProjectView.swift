@@ -8,6 +8,28 @@ struct ProjectView: View {
     @State private var showingAddHeading = false
     @State private var newHeadingName = ""
 
+    /// Explicitly `@ViewBuilder`-typed rather than inlined — see HANDOFF gotcha #19:
+    /// `ForEach`'s `ChartContent` conformance leaks module-wide from the views that
+    /// `import Charts`, and a `ForEach` inside a `Section` inside another `ForEach`
+    /// resolves against `ChartContentBuilder`, which will not build for iOS 17.
+    @ViewBuilder
+    private func rows(for todos: [Todo]) -> some View {
+        ForEach(todos, id: \.id) { todo in
+            TodoRowView(todo: todo, viewModel: viewModel)
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    Button {
+                        viewModel.completeTodo(todo)
+                    } label: {
+                        Label("Complete", systemImage: "checkmark.circle.fill")
+                    }
+                    .tint(.green)
+                }
+                .contextMenu {
+                    TodoContextMenu(todo: todo, viewModel: viewModel)
+                }
+        }
+    }
+
     private var sortedHeadings: [ProjectHeading] {
         project.headings.sorted { $0.sortOrder < $1.sortOrder }
     }
@@ -71,20 +93,7 @@ struct ProjectView: View {
                     .sorted { $0.sortOrder < $1.sortOrder }
 
                 Section {
-                    ForEach(headingTodos, id: \.id) { todo in
-                        TodoRowView(todo: todo, viewModel: viewModel)
-                            .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                                Button {
-                                    viewModel.completeTodo(todo)
-                                } label: {
-                                    Label("Complete", systemImage: "checkmark.circle.fill")
-                                }
-                                .tint(.green)
-                            }
-                            .contextMenu {
-                                TodoContextMenu(todo: todo, viewModel: viewModel)
-                            }
-                    }
+                    rows(for: headingTodos)
 
                     // Add todo under this heading
                     Button {
