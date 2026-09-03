@@ -1,94 +1,164 @@
 #!/usr/bin/env python3
-"""Finds an Xcode that can actually build this project for an iOS Simulator.
+"""Prepares a usable Xcode + iPhone simulator on a CI runner, and prints both.
 
-Two things go wrong on GitHub's macOS runners, and neither is visible from the obvious
-checks:
+GitHub's macOS runners have burned us three ways here, so this stops inferring and
+arranges things explicitly:
 
-  * The newest installed Xcode may be too new for the runner's macOS (e.g. Xcode 26.3 on
-    macOS 15.7). It still launches, and `xcrun simctl list runtimes` still reports iOS
-    runtimes, but `xcodebuild` enumerates no iOS Simulator destinations at all.
-  * `simctl` is shared across Xcodes, so a device name taken from it can belong to a
-    runtime the selected Xcode cannot target.
+  * The newest installed Xcode can be newer than the runner's macOS (Xcode 26.3 on
+    macOS 15.7), a pairing Xcode does not support.
+  * `xcrun simctl list runtimes` reporting iOS runtimes does not mean any iPhone
+    *device* has been created against them — and `xcodebuild` can only target devices.
+    With none, `-showdestinations` lists visionOS entries and a bare
+    "Any iOS Simulator Device" placeholder, and every concrete destination fails.
+  * `simctl` state is shared across Xcodes, so a device seen under one may be
+    unusable by another.
 
-So rather than inferring, this asks each installed Xcode what it can actually build for
-(`xcodebuild -showdestinations`) and picks the newest one that offers a concrete iPhone
-simulator. Prints two shell-ready lines:
+So: pick an Xcode (preferring the 16.x line, which is the stable pairing for macOS 15),
+then create a device against one of that Xcode's own iOS runtimes and address it by
+UDID, which sidesteps name and OS ambiguity entirely.
+
+Prints two shell-ready lines:
 
     DEVELOPER_DIR=/Applications/Xcode_16.4.app/Contents/Developer
-    DESTINATION=platform=iOS Simulator,OS=18.6,name=iPhone 16 Pro
+    DESTINATION=platform=iOS Simulator,id=<udid>
 """
 
+from __future__ import annotations
+
 import glob
+import json
 import os
 import re
 import subprocess
 import sys
 
-# Destination lines look like:
-#   { platform:iOS Simulator, arch:arm64, id:..., OS:26.5, name:iPhone 17 Pro }
-# The field list varies (arch is not always present), so parse the braces rather than
-# matching a fixed field order. The bare "Any iOS Simulator Device" placeholder has no OS
-# and cannot be tested on, so requiring OS is what filters it out.
-BRACES = re.compile(r"\{([^}]*)\}")
+DEVICE_NAME = "HabitForge-CI"
 
 
-def version_key(path: str) -> tuple:
-    return tuple(int(p) for p in re.findall(r"\d+", os.path.basename(path))) or (0,)
+def log(message: str) -> None:
+    print(message, file=sys.stderr)
 
 
-def destinations(developer_dir: str) -> list:
+def run(args, developer_dir, timeout=600):
     env = dict(os.environ, DEVELOPER_DIR=developer_dir)
-    try:
-        result = subprocess.run(
-            ["xcodebuild", "-project", "HabitForge.xcodeproj",
-             "-scheme", "HabitForge", "-showdestinations"],
-            capture_output=True, text=True, env=env, timeout=600,
-        )
-    except subprocess.TimeoutExpired:
+    return subprocess.run(args, capture_output=True, text=True, env=env, timeout=timeout)
+
+
+def version_of(path: str) -> tuple:
+    numbers = tuple(int(p) for p in re.findall(r"\d+", os.path.basename(path)))
+    return numbers or (0,)
+
+
+def xcode_candidates() -> list:
+    apps = glob.glob("/Applications/Xcode*.app")
+    apps = [a for a in apps
+            if os.path.isdir(os.path.join(a, "Contents/Developer/Platforms/iPhoneSimulator.platform"))]
+    # Xcode 16.x first (the stable pairing for a macOS 15 runner), then the rest,
+    # each group newest-first.
+    sixteens = sorted((a for a in apps if version_of(a)[0] == 16), key=version_of, reverse=True)
+    others = sorted((a for a in apps if version_of(a)[0] != 16), key=version_of, reverse=True)
+    return sixteens + others
+
+
+def ios_runtimes(developer_dir: str) -> list:
+    result = run(["xcrun", "simctl", "list", "runtimes", "--json"], developer_dir)
+    if result.returncode != 0:
         return []
-
-    found = []
-    for block in BRACES.findall(result.stdout):
-        fields = {}
-        for part in block.split(", "):
-            key, sep, value = part.partition(":")
-            if sep:
-                fields[key.strip()] = value.strip()
-
-        if fields.get("platform") != "iOS Simulator":
+    runtimes = []
+    for runtime in json.loads(result.stdout).get("runtimes", []):
+        if not runtime.get("isAvailable") or "iOS" not in runtime.get("name", ""):
             continue
-        name, os_version = fields.get("name", ""), fields.get("OS")
-        if not os_version or not name.startswith("iPhone"):
-            continue
-        found.append((tuple(int(p) for p in os_version.split(".")), os_version, name))
-    return found
+        version = tuple(int(p) for p in re.findall(r"\d+", runtime.get("version", "0")))
+        runtimes.append((version, runtime))
+    runtimes.sort(key=lambda r: r[0], reverse=True)
+    return [r[1] for r in runtimes]
+
+
+def existing_device(developer_dir: str) -> str | None:
+    result = run(["xcrun", "simctl", "list", "devices", "--json"], developer_dir)
+    if result.returncode != 0:
+        return None
+    for devices in json.loads(result.stdout).get("devices", {}).values():
+        for device in devices:
+            if device.get("name") == DEVICE_NAME and device.get("isAvailable"):
+                return device["udid"]
+    return None
+
+
+def create_device(developer_dir: str, runtime: dict) -> str | None:
+    """Creates an iPhone against `runtime`, trying its supported types newest-first."""
+    supported = [t for t in runtime.get("supportedDeviceTypes", [])
+                 if t.get("name", "").startswith("iPhone")]
+    if not supported:
+        result = run(["xcrun", "simctl", "list", "devicetypes", "--json"], developer_dir)
+        if result.returncode == 0:
+            supported = [t for t in json.loads(result.stdout).get("devicetypes", [])
+                         if t.get("name", "").startswith("iPhone")]
+
+    # Newest-looking model first, so CI logs name something current rather than an
+    # iPhone 11 that happened to sort last.
+    supported.sort(key=lambda t: (tuple(int(n) for n in re.findall(r"\d+", t["name"])) or (0,),
+                                  "Pro" in t["name"]),
+                   reverse=True)
+
+    for device_type in supported:
+        result = run(["xcrun", "simctl", "create", DEVICE_NAME,
+                      device_type["identifier"], runtime["identifier"]], developer_dir)
+        if result.returncode == 0:
+            udid = result.stdout.strip()
+            log(f"  created {device_type['name']} on {runtime['name']} ({udid})")
+            return udid
+    return None
+
+
+def can_target(developer_dir: str, udid: str) -> bool:
+    result = run(["xcodebuild", "-project", "HabitForge.xcodeproj",
+                  "-scheme", "HabitForge", "-showdestinations"], developer_dir)
+    if udid in result.stdout:
+        return True
+    log("  xcodebuild still does not list it. -showdestinations said:")
+    for line in result.stdout.splitlines():
+        if "iOS Simulator" in line:
+            log("    " + line.strip())
+    return False
 
 
 def main() -> int:
-    candidates = sorted(glob.glob("/Applications/Xcode*.app"), key=version_key, reverse=True)
+    candidates = xcode_candidates()
     if not candidates:
-        print("No Xcode found in /Applications", file=sys.stderr)
+        log("No Xcode with an iPhoneSimulator platform found")
         return 1
 
     for app in candidates:
         developer_dir = os.path.join(app, "Contents", "Developer")
-        if not os.path.isdir(os.path.join(developer_dir, "Platforms", "iPhoneSimulator.platform")):
-            print(f"skip {app}: no iPhoneSimulator platform", file=sys.stderr)
+        log(f"trying {app}")
+
+        runtimes = ios_runtimes(developer_dir)
+        if not runtimes:
+            log("  no available iOS runtimes")
+            continue
+        log("  iOS runtimes: " + ", ".join(r["name"] for r in runtimes))
+
+        udid = existing_device(developer_dir)
+        if udid:
+            log(f"  reusing existing {DEVICE_NAME} ({udid})")
+        else:
+            for runtime in runtimes:
+                udid = create_device(developer_dir, runtime)
+                if udid:
+                    break
+        if not udid:
+            log("  could not create an iPhone simulator")
             continue
 
-        found = destinations(developer_dir)
-        if not found:
-            print(f"skip {app}: reports no concrete iOS Simulator destinations", file=sys.stderr)
+        if not can_target(developer_dir, udid):
             continue
 
-        found.sort()
-        _, os_version, name = found[-1]
-        print(f"using {app} -> iPhone simulator '{name}' on iOS {os_version}", file=sys.stderr)
         print(f"DEVELOPER_DIR={developer_dir}")
-        print(f"DESTINATION=platform=iOS Simulator,OS={os_version},name={name}")
+        print(f"DESTINATION=platform=iOS Simulator,id={udid}")
         return 0
 
-    print("No installed Xcode offers a concrete iOS Simulator destination", file=sys.stderr)
+    log("No installed Xcode could target a freshly created iPhone simulator")
     return 1
 
 
