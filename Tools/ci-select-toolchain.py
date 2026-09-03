@@ -125,16 +125,27 @@ def create_device(developer_dir: str, runtime: dict, name: str) -> str | None:
     return None
 
 
-def can_target(developer_dir: str, udid: str) -> bool:
+def boot(developer_dir: str, udid: str) -> None:
+    """Boots the device and waits for it.
+
+    A freshly created simulator can stay invisible to `xcodebuild -showdestinations`
+    until CoreSimulator has actually brought it up, which is why enumeration is a
+    diagnostic here rather than a gate — the build itself is the real test.
+    """
+    run(["xcrun", "simctl", "boot", udid], developer_dir, timeout=300)
+    result = run(["xcrun", "simctl", "bootstatus", udid, "-b"], developer_dir, timeout=300)
+    log(f"  boot status: {(result.stdout or result.stderr).strip().splitlines()[-1:] or ['(none)']}")
+
+
+def report_destinations(developer_dir: str, udid: str) -> None:
     result = run(["xcodebuild", "-project", "HabitForge.xcodeproj",
                   "-scheme", "HabitForge", "-showdestinations"], developer_dir)
-    if udid in result.stdout:
-        return True
-    log("  xcodebuild still does not list it. -showdestinations said:")
-    for line in result.stdout.splitlines():
-        if "iOS Simulator" in line:
-            log("    " + line.strip())
-    return False
+    listed = udid in result.stdout
+    log(f"  xcodebuild lists this device: {listed}")
+    if not listed:
+        for line in result.stdout.splitlines():
+            if "iOS Simulator" in line:
+                log("    " + line.strip())
 
 
 def main() -> int:
@@ -177,8 +188,8 @@ def main() -> int:
             log("  could not create an iPhone simulator")
             continue
 
-        if not can_target(developer_dir, udid):
-            continue
+        boot(developer_dir, udid)
+        report_destinations(developer_dir, udid)
 
         print(f"DEVELOPER_DIR={developer_dir}")
         print(f"DESTINATION=platform=iOS Simulator,id={udid}")
