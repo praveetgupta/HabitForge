@@ -8,10 +8,11 @@ hoping a device exists, pick an Xcode, create a device against one of that Xcode
 iOS runtimes (a too-new runtime is invisible to it), boot it, and address it by UDID —
 which also sidesteps `simctl` state being shared between Xcodes.
 
-Note that when this project still carried unused Firebase and RevenueCat package
-references, every `xcodebuild` invocation stalled resolving that graph and listed no
-iOS destinations at all. If destination enumeration ever goes strange again, check the
-package graph before suspecting the simulator.
+If `xcodebuild` reports no iOS Simulator destinations while still offering "Designed
+for iPad" ones on macOS and visionOS, the runtime is older than
+IPHONEOS_DEPLOYMENT_TARGET rather than missing — that combination once cost a long
+debugging session when the deployment target had drifted to a version newer than any
+runtime a CI runner had.
 
 Prints two shell-ready lines:
 

@@ -14,11 +14,7 @@ concurrency:
 jobs:
   build-and-test:
     name: Build and test
-    # macos-14 rather than macos-15: on the macos-15 image xcodebuild enumerates no
-    # concrete iOS Simulator destinations at all — only visionOS entries and the bare
-    # "Any iOS Simulator Device" placeholder — even with a freshly created and booted
-    # iPhone that simctl reports as available, under every installed Xcode.
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:

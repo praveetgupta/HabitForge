@@ -370,6 +370,13 @@ converts at the display and text-field boundary only. Never persist a converted 
     team. Build against the simulator instead:
     `-destination 'platform=iOS Simulator,name=iPhone 17 Pro'`.
 
+    Related: if xcodebuild claims **"Unable to find a destination matching..."** while
+    still listing `Designed for [iPad,iPhone]` destinations on macOS and visionOS, the
+    simulator is not missing — it is *older than* `IPHONEOS_DEPLOYMENT_TARGET`. Xcode had
+    silently raised that setting to 26.4 while the docs claimed iOS 17, which excluded
+    every CI simulator and almost every real device. It is 17.0 now; check it before
+    blaming the runner.
+
 12. **UI tests always get a fresh app container** (even with parallel testing off, the
     runner may clone the device). Never write tests that assume existing routines or
     habits — create data through the UI first, as `WorkoutFlowUITests` does.
