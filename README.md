@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/praveetgupta/HabitForge/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/praveetgupta/HabitForge/actions/workflows/ci.yml/badge.svg"></a>
   <img alt="Platform" src="https://img.shields.io/badge/platform-iOS%2017%2B-blue">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-5.9-orange">
   <img alt="UI" src="https://img.shields.io/badge/SwiftUI-SwiftData-blue">

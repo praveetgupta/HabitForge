@@ -15,15 +15,32 @@ jobs:
   build-and-test:
     name: Build and test
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Show toolchain
+      - name: Select an Xcode that has the iOS Simulator platform
         run: |
-          xcodebuild -version
-          swift --version
+          # The runner's default Xcode can ship without the iOS platform installed — its
+          # only simulator destinations are visionOS, and xcodebuild then fails with
+          # "Unable to find a destination matching the provided destination specifier".
+          # Walk the installed Xcodes newest-first and take the first one that has it.
+          for app in $(ls -d /Applications/Xcode*.app 2>/dev/null | sort -Vr); do
+            if [ -d "$app/Contents/Developer/Platforms/iPhoneSimulator.platform" ]; then
+              echo "Selected $app"
+              sudo xcode-select -s "$app/Contents/Developer"
+              echo "DEVELOPER_DIR=$app/Contents/Developer" >> "$GITHUB_ENV"
+              xcodebuild -version
+              exit 0
+            fi
+            echo "Skipping $app (no iPhoneSimulator platform)"
+          done
+          echo "::error::No installed Xcode has the iOS Simulator platform"
+          exit 1
+
+      - name: Show available simulator runtimes
+        run: xcrun simctl list runtimes
 
       - name: Pick an available iPhone simulator
         id: sim
